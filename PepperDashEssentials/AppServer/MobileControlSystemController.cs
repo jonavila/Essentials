@@ -454,7 +454,6 @@ namespace PepperDash.Essentials
 			if(wsHost.StartsWith("wss"))
 			{
 				WSClient.SSL = true;
-				Debug.Console(0, this, "Using secure websocket, cert verification disabled");
 				WSClient.VerifyServerCertificate = false;
 			}
 			WSClient.ConnectionCallBack = Websocket_ConnectCallback;
