@@ -452,31 +452,34 @@ namespace PepperDash.Essentials
 			}
 			var wsHost = Host.Replace("http", "ws");
 			var url = string.Format("{0}/system/join/{1}", wsHost, this.SystemUuid);
-			using (var ws = new WebSocket (url)) 
-			{
-				ws.OnMessage += (sender, e) => {
-					Debug.Console(0, this, e.Data);
-					if (e.Data.Length > 0)
-					{
-						ParseStreamRx(e.Data);
-					}
 
-				};
-				ws.OnOpen += (sender, e) =>
+			//using (WSClient2 = new WebSocket(url)) 
+			//{
+
+			WSClient2 = new WebSocket(url);
+			WSClient2.OnMessage += (sender, e) =>
+			{
+				Debug.Console(0, this, e.Data);
+				if (e.Data.Length > 0)
 				{
-					StopServerReconnectTimer();
-					Debug.Console(0, this, "Mobile Control API connected");
-					SendMessageObjectToServer(new
-					{
-						type = "hello"
-					});
-				};
-				ws.OnError += this.ErrorHandler;
-				ws.OnClose += this.CloseHandler;	
-				Debug.Console(0, this, "Initializing mobile control client to {0}", url);
-				ws.Connect();
-				Debug.Console(0, this, "Connected???!!!");
-			}
+					ParseStreamRx(e.Data);
+				}
+			};
+			WSClient2.OnOpen += (sender, e) =>
+			{
+				StopServerReconnectTimer();
+				Debug.Console(0, this, "Mobile Control API connected");
+				SendMessageObjectToServer(new
+				{
+					type = "hello"
+				});
+			};
+			WSClient2.OnError += this.ErrorHandler;
+			WSClient2.OnClose += this.CloseHandler;	
+			Debug.Console(0, this, "Initializing mobile control client to {0}", url);
+			WSClient2.Connect();
+
+			//}
 
 			//if (WSClient != null)
 			//{
@@ -840,6 +843,8 @@ namespace PepperDash.Essentials
 		{
             if(string.IsNullOrEmpty(message))
                 return;
+
+			Debug.Console(1, this, "Message RX: {0}", message); // REMOVE
 
 			if (!message.Contains("/system/heartbeat"))
 			{
