@@ -13,6 +13,7 @@ using Crestron.SimplSharp.Net.Http;
 using Crestron.SimplSharp.Net.Https;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using WebSocketSharp;
 
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
@@ -24,7 +25,8 @@ namespace PepperDash.Essentials
 {
     public class MobileControlSystemController : Device
     {
-		WebSocketClient WSClient;
+		//WebSocketClient WSClient;
+		WebSocket WSClient2;
 
 		//bool LinkUp;
 
@@ -144,10 +146,11 @@ namespace PepperDash.Essentials
 			Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Ethernet status change, port {0}: {1}",
 				args.EthernetAdapter, args.EthernetEventType);
 
-			if (args.EthernetEventType == eEthernetEventType.LinkDown && WSClient != null && args.EthernetAdapter == WSClient.EthernetAdapter)
-			{
-				CleanUpWebsocketClient();
-			}
+#warning See if this is even necessary for this new client
+			//if (args.EthernetEventType == eEthernetEventType.LinkDown && WSClient != null && args.EthernetAdapter == WSClient.EthernetAdapter)
+			//{
+			//    CleanUpWebsocketClient();
+			//}
 		}
 
         /// <summary>
@@ -157,8 +160,10 @@ namespace PepperDash.Essentials
         void CrestronEnvironment_ProgramStatusEventHandler(eProgramStatusEventType programEventType)
         {
             if (programEventType == eProgramStatusEventType.Stopping 
-				&& WSClient != null
-				&& WSClient.Connected)
+				&& WSClient2 != null
+				&& WSClient2.IsAlive)
+				//&& WSClient != null
+				//&& WSClient.Connected)
             {
 				CleanUpWebsocketClient();
             }
@@ -408,7 +413,9 @@ namespace PepperDash.Essentials
 				name = "No config";
 				code = "Not available";
 			}
-			var conn = WSClient == null ? "No client" : (WSClient.Connected ? "Yes" : "No");
+			//var conn = WSClient == null ? "No client" : (WSClient.Connected ? "Yes" : "No");
+			var conn = WSClient2 == null ? "No client" : (WSClient2.IsAlive ? "Yes" : "No");
+
             var secSinceLastAck = DateTime.Now - LastAckMessage;
 
 
@@ -439,69 +446,124 @@ namespace PepperDash.Essentials
 		/// <param name="o"></param>
 		void ConnectWebsocketClient()
 		{
-
-
-			if (WSClient != null)
+			if (WSClient2 != null)
 			{
-				Debug.Console(1, this, "Cleaning up previous socket");
-				CleanUpWebsocketClient();
-			}
 
-			WSClient = new WebSocketClient();
+			}
 			var wsHost = Host.Replace("http", "ws");
-			WSClient.URL = string.Format("{0}/system/join/{1}", wsHost, this.SystemUuid);
-			Debug.Console(1, this, "Initializing mobile control client to {0}", WSClient.URL);
-			if(wsHost.StartsWith("wss"))
+			var url = string.Format("{0}/system/join/{1}", wsHost, this.SystemUuid);
+			using (var ws = new WebSocket (url)) 
 			{
-				WSClient.SSL = true;
-				WSClient.VerifyServerCertificate = false;
+				ws.OnMessage += (sender, e) => {
+					Debug.Console(0, this, e.Data);
+					if (e.Data.Length > 0)
+					{
+						ParseStreamRx(e.Data);
+					}
+
+				};
+				ws.OnOpen += (sender, e) =>
+				{
+					StopServerReconnectTimer();
+					Debug.Console(0, this, "Mobile Control API connected");
+					SendMessageObjectToServer(new
+					{
+						type = "hello"
+					});
+				};
+				ws.OnError += this.ErrorHandler;
+				ws.OnClose += this.CloseHandler;	
+				Debug.Console(0, this, "Initializing mobile control client to {0}", url);
+				ws.Connect();
+				Debug.Console(0, this, "Connected???!!!");
 			}
-			WSClient.ConnectionCallBack = Websocket_ConnectCallback;
-			WSClient.ConnectAsync();
+
+			//if (WSClient != null)
+			//{
+			//    Debug.Console(1, this, "Cleaning up previous socket");
+			//    CleanUpWebsocketClient();
+			//}
+
+			//WSClient = new WebSocketClient();
+			//WSClient.URL = string.Format("{0}/system/join/{1}", wsHost, this.SystemUuid);
+			//Debug.Console(1, this, "Initializing mobile control client to {0}", WSClient.URL);
+			//if(wsHost.StartsWith("wss"))
+			//{
+			//    WSClient.SSL = true;
+			//    WSClient.VerifyServerCertificate = false;
+			//}
+			//WSClient.ConnectionCallBack = Websocket_ConnectCallback;
+			//WSClient.ConnectAsync();
 		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		void ErrorHandler(object sender, ErrorEventArgs e)
+		{
+			Debug.Console(0, this, "Websocket error {0}", e.Message);
+			StartServerReconnectTimer();
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		void CloseHandler(object sender, CloseEventArgs e)
+		{
+			Debug.Console(0, this, "Websocket close {0} {1}, clean={2}", e.Code, e.Reason, e.WasClean);
+			if (ServerHeartbeatCheckTimer != null)
+				ServerHeartbeatCheckTimer.Stop();
+			// Start the reconnect timer
+			StartServerReconnectTimer();
+		}
+
 
 		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="code"></param>
 		/// <returns></returns>
-		int Websocket_ConnectCallback(WebSocketClient.WEBSOCKET_RESULT_CODES code)
-		{
-			if (code == WebSocketClient.WEBSOCKET_RESULT_CODES.WEBSOCKET_CLIENT_SUCCESS)
-			{
-				StopServerReconnectTimer();
-				Debug.Console(1, this, "Websocket connected");
-				WSClient.DisconnectCallBack = Websocket_DisconnectCallback;
-				WSClient.SendCallBack = Websocket_SendCallback;
-				WSClient.ReceiveCallBack = Websocket_ReceiveCallback;
-				WSClient.ReceiveAsync();
-				SendMessageObjectToServer(new
-				{
-					type = "hello"
-				});
-			}
-			else
-			{
-				Debug.Console(1, this, "Websocket protocol: {0}", WSClient.Protocol);
-				if (code == WebSocketClient.WEBSOCKET_RESULT_CODES.WEBSOCKET_CLIENT_HTTP_HANDSHAKE_TOKEN_ERROR)
-				{
-					// This is the case when app server is running behind a websever and app server is down
-					Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Web socket connection failed. Check that app server is running behind web server");
-				}
-				else if (code == WebSocketClient.WEBSOCKET_RESULT_CODES.WEBSOCKET_CLIENT_SOCKET_CONNECTION_FAILED)
-				{
-					// this will be the case when webserver is unreachable
-					Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Web socket connection failed");
-				}
-				else
-				{
-					Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Web socket connection failure: {0}", code);
-				} 
-				StartServerReconnectTimer();
-			}
+		//int Websocket_ConnectCallback(WebSocketClient.WEBSOCKET_RESULT_CODES code)
+		//{
+		//    if (code == WebSocketClient.WEBSOCKET_RESULT_CODES.WEBSOCKET_CLIENT_SUCCESS)
+		//    {
+		//        StopServerReconnectTimer();
+		//        Debug.Console(1, this, "Websocket connected");
+		//        WSClient.DisconnectCallBack = Websocket_DisconnectCallback;
+		//        WSClient.SendCallBack = Websocket_SendCallback;
+		//        WSClient.ReceiveCallBack = Websocket_ReceiveCallback;
+		//        WSClient.ReceiveAsync();
+		//        SendMessageObjectToServer(new
+		//        {
+		//            type = "hello"
+		//        });
+		//    }
+		//    else
+		//    {
+		//        Debug.Console(1, this, "Websocket protocol: {0}", WSClient.Protocol);
+		//        if (code == WebSocketClient.WEBSOCKET_RESULT_CODES.WEBSOCKET_CLIENT_HTTP_HANDSHAKE_TOKEN_ERROR)
+		//        {
+		//            // This is the case when app server is running behind a websever and app server is down
+		//            Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Web socket connection failed. Check that app server is running behind web server");
+		//        }
+		//        else if (code == WebSocketClient.WEBSOCKET_RESULT_CODES.WEBSOCKET_CLIENT_SOCKET_CONNECTION_FAILED)
+		//        {
+		//            // this will be the case when webserver is unreachable
+		//            Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Web socket connection failed");
+		//        }
+		//        else
+		//        {
+		//            Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Web socket connection failure: {0}", code);
+		//        } 
+		//        StartServerReconnectTimer();
+		//    }
 
-			return 0;
-		}
+		//    return 0;
+		//}
 
 		/// <summary>
 		/// After a "hello" from the server, sends config and stuff
@@ -541,8 +603,9 @@ namespace PepperDash.Essentials
         /// <param name="o">object to be serialized and sent in post body</param>
         public void SendMessageToServer(JObject o)
         {
-            if (WSClient != null && WSClient.Connected)
-            {
+			//if (WSClient != null && WSClient.Connected)
+			if (WSClient2 != null && WSClient2.IsAlive)
+			{
                 string message = JsonConvert.SerializeObject(o, Formatting.None, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
 
                 if (!message.Contains("/system/heartbeat"))
@@ -550,16 +613,17 @@ namespace PepperDash.Essentials
                 //else
                 //    Debug.Console(1, this, "TX messages contains /system/heartbeat");
 
-                var messageBytes = System.Text.Encoding.UTF8.GetBytes(message);
-				var result = WSClient.Send(messageBytes, (uint)messageBytes.Length, WebSocketClient.WEBSOCKET_PACKET_TYPES.LWS_WS_OPCODE_07__TEXT_FRAME);
-				if (result != WebSocketClient.WEBSOCKET_RESULT_CODES.WEBSOCKET_CLIENT_SUCCESS)
-				{
-					Debug.Console(1, this, "Socket send result error: {0}", result);
-				}
+				WSClient2.Send(message);
+				//var messageBytes = System.Text.Encoding.UTF8.GetBytes(message);
+				//var result = WSClient.Send(messageBytes, (uint)messageBytes.Length, WebSocketClient.WEBSOCKET_PACKET_TYPES.LWS_WS_OPCODE_07__TEXT_FRAME);
+				//if (result != WebSocketClient.WEBSOCKET_RESULT_CODES.WEBSOCKET_CLIENT_SUCCESS)
+				//{
+				//    Debug.Console(1, this, "Socket send result error: {0}", result);
+				//}
             }
-			else if (WSClient == null)
+			else if (WSClient2 == null)
 			{
-				Debug.Console(1, this, "Cannot send. Not connected.");
+				Debug.Console(1, this, "Cannot send. No client.");
 			}
         }
 
@@ -567,22 +631,24 @@ namespace PepperDash.Essentials
         /// Disconnects the SSE Client and stops the heartbeat timer
         /// </summary>
         /// <param name="command"></param>
-        void CleanUpWebsocketClient()
-        {
+		void CleanUpWebsocketClient()
+		{
 			Debug.Console(1, this, "Disconnecting websocket");
-			if (WSClient != null)
+			if (WSClient2 != null)
 			{
-				WSClient.SendCallBack = null;
-				WSClient.ReceiveCallBack = null;
-				WSClient.ConnectionCallBack = null;
-				WSClient.DisconnectCallBack = null;
-				if (WSClient.Connected)
-				{
-					WSClient.Disconnect();
-				}
-				WSClient = null;
+				WSClient2.Close();
+				WSClient2 = null;
+				//WSClient.SendCallBack = null;
+				//WSClient.ReceiveCallBack = null;
+				//WSClient.ConnectionCallBack = null;
+				//WSClient.DisconnectCallBack = null;
+				//if (WSClient.Connected)
+				//{
+				//    WSClient.Disconnect();
+				//}
+				//WSClient = null;
 			}
-        }
+		}
 
 		/// <summary>
 		/// 
@@ -729,29 +795,29 @@ namespace PepperDash.Essentials
 		/// <param name="length"></param>
 		/// <param name="opcode"></param>
 		/// <param name="err"></param>
-		int Websocket_ReceiveCallback(byte[] data, uint length, WebSocketClient.WEBSOCKET_PACKET_TYPES opcode,
-			WebSocketClient.WEBSOCKET_RESULT_CODES err)
-		{
-			if (opcode == WebSocketClient.WEBSOCKET_PACKET_TYPES.LWS_WS_OPCODE_07__TEXT_FRAME)
-			{
-				var rx = System.Text.Encoding.UTF8.GetString(data, 0, (int)length);
-				if (rx.Length > 0)
-					ParseStreamRx(rx);
-				WSClient.ReceiveAsync();
-			}
+		//int Websocket_ReceiveCallback(byte[] data, uint length, WebSocketClient.WEBSOCKET_PACKET_TYPES opcode,
+		//    WebSocketClient.WEBSOCKET_RESULT_CODES err)
+		//{
+		//    if (opcode == WebSocketClient.WEBSOCKET_PACKET_TYPES.LWS_WS_OPCODE_07__TEXT_FRAME)
+		//    {
+		//        var rx = System.Text.Encoding.UTF8.GetString(data, 0, (int)length);
+		//        if (rx.Length > 0)
+		//            ParseStreamRx(rx);
+		//        WSClient.ReceiveAsync();
+		//    }
 
-			else if (opcode == WebSocketClient.WEBSOCKET_PACKET_TYPES.LWS_WS_OPCODE_07__CLOSE)
-			{
-				Debug.Console(1, this, "Websocket disconnect received from remote");
-				CleanUpWebsocketClient();
-			}
-			else
-			{
-				Debug.Console(1, this, "websocket rx opcode/err {0}/{1}", opcode, err);
-				WSClient.ReceiveAsync();
-			}
-			return 0;
-		}
+		//    else if (opcode == WebSocketClient.WEBSOCKET_PACKET_TYPES.LWS_WS_OPCODE_07__CLOSE)
+		//    {
+		//        Debug.Console(1, this, "Websocket disconnect received from remote");
+		//        CleanUpWebsocketClient();
+		//    }
+		//    else
+		//    {
+		//        Debug.Console(1, this, "websocket rx opcode/err {0}/{1}", opcode, err);
+		//        WSClient.ReceiveAsync();
+		//    }
+		//    return 0;
+		//}
 
         /// <summary>
         /// Callback to catch possible errors in sending via the websocket
