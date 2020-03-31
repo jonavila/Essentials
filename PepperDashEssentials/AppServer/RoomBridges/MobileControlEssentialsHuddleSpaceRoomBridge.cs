@@ -416,6 +416,7 @@ namespace PepperDash.Essentials
 			PostStatusMessage(new
 			{
                 //calls = GetCallsMessageObject(),
+				activityMode = 1,
 				isOn = room.OnFeedback.BoolValue,
 				selectedSourceKey = sourceKey,
                 //vtc = GetVtcCallsMessageObject(),
