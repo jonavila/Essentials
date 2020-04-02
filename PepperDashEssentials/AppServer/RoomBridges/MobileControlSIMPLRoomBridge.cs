@@ -823,6 +823,9 @@ namespace PepperDash.Essentials.Room.MobileControl
 			Debug.Console(1, this, "Server user code changed: {0}", UserCode);
 			EISC.StringInput[JoinMap.UserCodeToSystem.JoinNumber].StringValue = UserCode;
 			EISC.StringInput[JoinMap.ServerUrl.JoinNumber].StringValue = Parent.Config.ClientAppUrl;
+			var qrUrl = string.Format("{0}/api/system/{1}/qr", Parent.Host, Parent.SystemUuid);
+			Debug.Console(1, this, "Server user code changed: {0} - {1}", UserCode, qrUrl);
+			EISC.StringInput[JoinMap.QRCodeUrl.JoinNumber].StringValue = qrUrl;
 		}
 	}
 }
