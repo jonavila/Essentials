@@ -399,7 +399,7 @@ namespace PepperDash.Essentials
 		/// </summary>
 		void ShowInfo()
 		{
-			var url = Config != null ? Config.ServerUrl : "No config";
+			var url = Config != null ? Host : "No config";
 			string name;
 			string code;
 			if (RoomBridges != null && RoomBridges.Count > 0)
@@ -445,10 +445,7 @@ namespace PepperDash.Essentials
 		/// <param name="o"></param>
 		void ConnectWebsocketClient()
 		{
-			if (WSClient2 != null)
-			{
-
-			}
+			CleanUpWebsocketClient();
 			var wsHost = Host.Replace("http", "ws");
 			var url = string.Format("{0}/system/join/{1}", wsHost, this.SystemUuid);
 			WSClient2 = new WebSocket(url);
@@ -576,9 +573,9 @@ namespace PepperDash.Essentials
         /// <param name="command"></param>
 		void CleanUpWebsocketClient()
 		{
-			Debug.Console(1, this, "Disconnecting websocket");
 			if (WSClient2 != null)
 			{
+				Debug.Console(1, this, "Disconnecting websocket");
 				WSClient2.Close();
 				WSClient2 = null;
 			}
