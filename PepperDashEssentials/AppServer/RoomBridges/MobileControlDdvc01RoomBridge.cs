@@ -910,7 +910,7 @@ namespace PepperDash.Essentials.Room.MobileControl
 		{
 			EISC.StringInput[StringJoin.UserCodeToSystem].StringValue = UserCode;
 			EISC.StringInput[StringJoin.ServerUrl].StringValue = Parent.Config.ClientAppUrl;
-			var qrUrl = string.Format("{0}/api/system/{1}/qr", Parent.Host, Parent.SystemUuid);
+			var qrUrl = string.Format("{0}/api/system/{1}/qr?x={2}", Parent.Host, Parent.SystemUuid, new Random().Next());
 			Debug.Console(1, this, "Server user code changed: {0} - {1}", UserCode, qrUrl);
 			EISC.StringInput[StringJoin.QRCodeUrl].StringValue = qrUrl;
 		}

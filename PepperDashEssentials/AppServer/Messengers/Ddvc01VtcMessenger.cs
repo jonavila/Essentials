@@ -274,11 +274,11 @@ namespace PepperDash.Essentials.AppServer.Messengers
                 PostCallsList();
             });
 
-            EISC.SetStringSigAction(SCallDirection, s =>
-            {
-                CurrentCallItem.Direction = (eCodecCallDirection)Enum.Parse(typeof(eCodecCallDirection), s, true);
-                PostCallsList();
-            });
+			//EISC.SetStringSigAction(SCallDirection, s =>
+			//{
+			//    CurrentCallItem.Direction = (eCodecCallDirection)Enum.Parse(typeof(eCodecCallDirection), s, true);
+			//    PostCallsList();
+			//});
 
 			EISC.SetBoolSigAction(BCallIncoming, b =>
 			{
@@ -495,6 +495,7 @@ namespace PepperDash.Essentials.AppServer.Messengers
 				hasCameras = true,
 				showCamerasWhenNotInCall = EISC.BooleanOutput[503].BoolValue,
 				selectedCamera = GetSelectedCamera(),
+				
 			});
 		}
 
@@ -637,6 +638,10 @@ namespace PepperDash.Essentials.AppServer.Messengers
 			var list = new List<CodecActiveCallItem>();
 			if (CurrentCallItem.Status != eCodecCallStatus.Disconnected)
 			{
+				if (CurrentCallItem.Direction != eCodecCallDirection.Incoming)
+				{
+					CurrentCallItem.Direction = eCodecCallDirection.Outgoing;
+				}
 				list.Add(CurrentCallItem);
 			}
 			if (EISC.GetBool(BCallIncoming)) {
