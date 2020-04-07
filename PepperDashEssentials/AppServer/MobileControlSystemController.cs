@@ -113,7 +113,7 @@ namespace PepperDash.Essentials
             CrestronConsole.AddNewConsoleCommand(s => ParseStreamRx(s), "mobilesimulateaction", "Simulates a message from the server", ConsoleAccessLevelEnum.AccessOperator);
 
             CrestronEnvironment.ProgramStatusEventHandler += new ProgramStatusEventHandler(CrestronEnvironment_ProgramStatusEventHandler);
-			CrestronEnvironment.EthernetEventHandler += new EthernetEventHandler(CrestronEnvironment_EthernetEventHandler);
+			//CrestronEnvironment.EthernetEventHandler += new EthernetEventHandler(CrestronEnvironment_EthernetEventHandler);
 
             // Config Messenger
             var cmKey = Key + "-config";
@@ -136,21 +136,21 @@ namespace PepperDash.Essentials
             return base.CustomActivate();
         }
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="ethernetEventArgs"></param>
-		void CrestronEnvironment_EthernetEventHandler(EthernetEventArgs args)
-		{
-			Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Ethernet status change, port {0}: {1}",
-				args.EthernetAdapter, args.EthernetEventType);
+//        /// <summary>
+//        /// 
+//        /// </summary>
+//        /// <param name="ethernetEventArgs"></param>
+//        void CrestronEnvironment_EthernetEventHandler(EthernetEventArgs args)
+//        {
+//            Debug.Console(1, this, Debug.ErrorLogLevel.Warning, "Ethernet status change, port {0}: {1}",
+//                args.EthernetAdapter, args.EthernetEventType);
 
-#warning See if this is even necessary for this new client
-			//if (args.EthernetEventType == eEthernetEventType.LinkDown && WSClient != null && args.EthernetAdapter == WSClient.EthernetAdapter)
-			//{
-			//    CleanUpWebsocketClient();
-			//}
-		}
+//#warning See if this is even necessary for this new client
+//            //if (args.EthernetEventType == eEthernetEventType.LinkDown && WSClient != null && args.EthernetAdapter == WSClient.EthernetAdapter)
+//            //{
+//            //    CleanUpWebsocketClient();
+//            //}
+//        }
 
         /// <summary>
         /// Sends message to server to indicate the system is shutting down
