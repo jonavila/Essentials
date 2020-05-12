@@ -910,5 +910,14 @@ namespace PepperDash.Essentials
 		}
     }
 
+    public class MobileControlResponseMessage
+    {
+        [JsonProperty("type")]
+        public string Type { get; set; }
+        [JsonProperty("clientId")]
+        public int ClientId { get; set; }
+        [JsonProperty("content")]
+        public object Content { get; set; }
+    }
 
 }
