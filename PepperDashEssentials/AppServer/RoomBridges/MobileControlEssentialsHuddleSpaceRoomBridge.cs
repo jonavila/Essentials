@@ -62,7 +62,8 @@ namespace PepperDash.Essentials
 			// doesn't need to know about everything.
 
 			// Source Changes and room off
-			Parent.AddAction(string.Format(@"/room/{0}/status", Room.Key), new Action(() => SendFullStatus(Room)));
+            //Parent.AddAction(string.Format(@"/room/{0}/status", Room.Key), new Action(() => SendFullStatus(Room)));
+            Parent.AddAction(string.Format(@"/room/{0}/status", Room.Key), new ClientSpecificUpdateRequest(() => GetFullStatus(Room)));
 
 			var routeRoom = Room as IRunRouteAction;
 			if(routeRoom != null)
@@ -400,29 +401,61 @@ namespace PepperDash.Essentials
         /// <param name="room"></param>
         void SendFullStatus(EssentialsRoomBase room)
         {
-			var sourceKey = room is IHasCurrentSourceInfoChange ? (room as IHasCurrentSourceInfoChange).CurrentSourceInfoKey : null;
-			
-			var rmVc = room as IHasCurrentVolumeControls;
-			var volumes = new Volumes();
-			if (rmVc != null)
-			{
-				var vc = rmVc.CurrentVolumeControls as IBasicVolumeWithFeedback;
-				if (vc != null)
-				{
-					volumes.Master = new Volume("master", vc.VolumeLevelFeedback.UShortValue, vc.MuteFeedback.BoolValue, "Volume", true, "");
-				}
-			}
+            
 
-			PostStatusMessage(new
-			{
-                //calls = GetCallsMessageObject(),
-				activityMode = 1,
-				isOn = room.OnFeedback.BoolValue,
-				selectedSourceKey = sourceKey,
-                //vtc = GetVtcCallsMessageObject(),
-				volumes = volumes
-			});
+            Parent.SendMessageToServer(JObject.FromObject(new
+            {
+                type = "/room/status/",
+                content = GetFullStatus(room)
+            }));
+
+
+            //PostStatusMessage(new
+            //{
+            //    //calls = GetCallsMessageObject(),
+            //    isOn = room.OnFeedback.BoolValue,
+            //    selectedSourceKey = sourceKey,
+            //    //vtc = GetVtcCallsMessageObject(),
+            //    volumes = volumes,
+            //});
         }
+
+
+        MobileControlResponseMessage GetFullStatus(EssentialsRoomBase room)
+        {
+            var sourceKey = room is IHasCurrentSourceInfoChange ? (room as IHasCurrentSourceInfoChange).CurrentSourceInfoKey : null;
+
+            var rmVc = room as IHasCurrentVolumeControls;
+            var volumes = new Volumes();
+            if (rmVc != null)
+            {
+                var vc = rmVc.CurrentVolumeControls as IBasicVolumeWithFeedback;
+                if (vc != null)
+                {
+                    volumes.Master = new Volume("master", vc.VolumeLevelFeedback.UShortValue, vc.MuteFeedback.BoolValue, "Volume", true, "");
+                }
+            }
+
+            var contentObject = new
+            {
+                //calls = GetCallsMessageObject(),
+                activityMode = 1,
+                isOn = room.OnFeedback.BoolValue,
+                selectedSourceKey = sourceKey,
+
+                //vtc = GetVtcCallsMessageObject(),
+                volumes = volumes,
+            };
+
+            var messageObject = new MobileControlResponseMessage()
+            {
+                Type = "/room/status/",
+                Content = contentObject
+            };
+
+            return messageObject;
+        }
+
     }
 
 	/// <summary>
@@ -431,6 +464,16 @@ namespace PepperDash.Essentials
     public class SourceSelectMessageContent
     {
 		public string SourceListItem { get; set; }
+    }
+
+    public class ClientSpecificUpdateRequest
+    {
+        public Func<object> ResponseMethod { get; private set; }
+
+        public ClientSpecificUpdateRequest(Func<object> func)
+        {
+            ResponseMethod = func;
+        }
     }
 
 	/// <summary>

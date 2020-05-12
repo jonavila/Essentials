@@ -827,6 +827,16 @@ namespace PepperDash.Essentials
 							(action as Action<SourceSelectMessageContent>)(messageObj["content"]
 								.ToObject<SourceSelectMessageContent>());
 						}
+                        else if (action is ClientSpecificUpdateRequest)
+                        {
+                            var clientId = Int32.Parse(messageObj["clientId"].ToString());
+
+                            var respObj = (action as ClientSpecificUpdateRequest).ResponseMethod() as MobileControlResponseMessage;
+
+                            respObj.ClientId = clientId;
+
+                            SendMessageToServer(JObject.FromObject(respObj));
+                        }
 					}
 					else
 					{
@@ -841,13 +851,6 @@ namespace PepperDash.Essentials
                 Debug.Console(1, this, "Unable to parse message: {0}", err);	
             }
         }
-
-
-
-
-
-
-
 
 		/// <summary>
 		/// 
@@ -906,4 +909,6 @@ namespace PepperDash.Essentials
 			CrestronConsole.ConsoleCommandResponse("Usage: mobilehttprequest:N get/post url\r");
 		}
     }
+
+
 }
