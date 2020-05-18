@@ -17,6 +17,7 @@ namespace PepperDash.Essentials.Devices.Displays
 	/// <summary>
 	/// 
 	/// </summary>
+	[Obsolete("Please use plugin version")]
 	public class NecPSXMDisplay : TwoWayDisplayBase, IBasicVolumeWithFeedback, ICommunicationMonitor, IBridgeAdvanced
 	{
 		public IBasicCommunication Communication { get; private set; }
@@ -131,6 +132,7 @@ namespace PepperDash.Essentials.Devices.Displays
 			VolumeLevelFeedback = new IntFeedback(() => { return _VolumeLevel; });
 			MuteFeedback = new BoolFeedback(() => _IsMuted);
 
+			Debug.ConsoleWithLog(0, this, "This device NecPSXMDisplay is obsolete. Please use plugin version");
 			//    new BoolCueActionPair(CommonBoolCue.Menu, b => { if(b) Send(MenuIrCmd); }),
 			//    new BoolCueActionPair(CommonBoolCue.Up, b => { if(b) Send(UpIrCmd); }),
 			//    new BoolCueActionPair(CommonBoolCue.Down, b => { if(b) Send(DownIrCmd); }),
