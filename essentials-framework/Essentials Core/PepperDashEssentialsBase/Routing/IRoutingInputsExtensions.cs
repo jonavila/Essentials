@@ -22,7 +22,7 @@ namespace PepperDash.Essentials.Core
 		/// and then attempts a new Route and if sucessful, stores that RouteDescriptor
 		/// in RouteDescriptorCollection.DefaultCollection
 		/// </summary>
-		public static void ReleaseAndMakeRoute(this IRoutingInputs destination, IRoutingOutputs source, eRoutingSignalType signalType)
+		public static void ReleaseAndMakeRoute(this IRoutingSinkNoSwitching destination, IRoutingOutputs source, eRoutingSignalType signalType)
 		{
 			destination.ReleaseRoute();
 
@@ -149,19 +149,18 @@ namespace PepperDash.Essentials.Core
 			if (goodInputPort != null) 
 			{
                 //Debug.Console(2, destination, "adding RouteDescriptor");
-				if (outputPortToUse == null)
-				{
-					// it's a sink device
-                    if (destination is IRoutingSinkWithSwitching)
-                        routeTable.Routes.Add(new RouteSwitchDescriptor(goodInputPort));
-				}
-				else if (destination is IRouting)
-				{
-					routeTable.Routes.Add(new RouteSwitchDescriptor (outputPortToUse, goodInputPort));
-				}
-				else // device is merely IRoutingInputOutputs
-					Debug.Console(2, destination, "    No routing. Passthrough device");
-                //Debug.Console(2, destination, "Exiting cycle {0}", cycle);
+			    if (outputPortToUse == null)
+			    {
+			        // it's a sink device
+			        routeTable.Routes.Add(new RouteSwitchDescriptor(goodInputPort));
+			    }
+			    else if (destination is IRouting)
+			    {
+			        routeTable.Routes.Add(new RouteSwitchDescriptor(outputPortToUse, goodInputPort));
+			    }
+			    else // device is merely IRoutingInputOutputs
+			        Debug.Console(2, destination, "    No routing. Passthrough device");
+			    //Debug.Console(2, destination, "Exiting cycle {0}", cycle);
 				return true;
 			}
 	
